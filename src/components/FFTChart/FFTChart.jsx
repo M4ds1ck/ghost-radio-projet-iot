@@ -38,8 +38,7 @@ export default function FFTChart({
   height = 260,
 }) {
   const { data, config } = useFFTSimulator({ mode, jammerPower })
-  const showReference =
-    mode === 'normal' ? GNURADIO.signalNormal.signal_freq : mode !== 'replay' ? 0 : null
+  const showReference = mode === 'normal' ? GNURADIO.signalNormal.signal_freq : null
 
   return (
     <div className="h-full w-full">

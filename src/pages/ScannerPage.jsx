@@ -3,7 +3,11 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useOutletContext } from 'react-router-dom'
 import FFTChart from '../components/FFTChart/FFTChart'
 import FlowGraph from '../components/FlowGraph/FlowGraph'
-import { GNURADIO, getCaptureDurationSeconds } from '../constants/gnuradio'
+import {
+  GNURADIO,
+  formatBytes,
+  getCaptureDurationSeconds,
+} from '../constants/gnuradio'
 import useCountUp from '../hooks/useCountUp'
 
 const BASE_SIGNALS = [
@@ -34,6 +38,7 @@ export default function ScannerPage() {
   const { scannerActive, setScannerActive } = useOutletContext()
   const [selectedSignal, setSelectedSignal] = useState(1)
   const [visibleRows, setVisibleRows] = useState(BASE_SIGNALS.length)
+  const [capturedIds, setCapturedIds] = useState(new Set([1]))
   const fileSize = useCountUp(GNURADIO.sniffer.output_size_bytes)
   const duration = useCountUp(getCaptureDurationSeconds(), 1200, 1)
 
@@ -114,7 +119,7 @@ export default function ScannerPage() {
             </div>
             <div className="flex justify-between">
               <span>File size</span>
-              <span>{fileSize.toLocaleString('en-US')} bytes</span>
+              <span>{formatBytes(Math.round(fileSize))}</span>
             </div>
             <div className="flex justify-between">
               <span>Duration</span>
@@ -127,7 +132,6 @@ export default function ScannerPage() {
             onClick={() => {
               if (scannerActive) {
                 setScannerActive(false)
-                setVisibleRows(BASE_SIGNALS.length)
                 return
               }
 
@@ -169,13 +173,13 @@ export default function ScannerPage() {
                       onClick={() => setSelectedSignal(signal.id)}
                       className="group cursor-pointer text-slate-300"
                     >
-                      {[signal.id, signal.frequency, signal.power, signal.modulation, signal.status].map(
+                      {[signal.id, signal.frequency, signal.power, signal.modulation].map(
                         (value, cellIndex) => (
                           <td
                             key={`${signal.id}-${cellIndex}`}
                             className={`border border-[color:var(--border)] bg-[color:var(--bg-secondary)]/78 px-4 py-3 ${
                               cellIndex === 0 ? 'rounded-l-sm' : ''
-                            } ${cellIndex === 4 ? 'rounded-r-sm' : ''}`}
+                            }`}
                             style={{
                               boxShadow:
                                 selectedSignal === signal.id
@@ -183,19 +187,43 @@ export default function ScannerPage() {
                                   : 'none',
                             }}
                           >
-                            <div className="flex items-center justify-between gap-3">
-                              <span>{value}</span>
-                              {cellIndex === 4 && (
-                                <span className="pointer-events-none opacity-0 transition group-hover:opacity-100">
-                                  <span className="rounded-sm border border-[rgba(0,212,255,0.4)] bg-[rgba(0,212,255,0.08)] px-3 py-1 text-[10px] uppercase tracking-[0.15em] text-[color:var(--accent-blue)]">
-                                    Capture
-                                  </span>
-                                </span>
-                              )}
-                            </div>
+                            {value}
                           </td>
                         ),
                       )}
+                      <td
+                        className="rounded-r-sm border border-[color:var(--border)] bg-[color:var(--bg-secondary)]/78 px-4 py-3"
+                        style={{
+                          boxShadow:
+                            selectedSignal === signal.id
+                              ? '0 0 18px rgba(0,212,255,0.12)'
+                              : 'none',
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span>{capturedIds.has(signal.id) ? 'CAPTURED ✓' : signal.status}</span>
+                          <span className="opacity-0 transition group-hover:opacity-100">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setCapturedIds((prev) => {
+                                  const next = new Set(prev)
+                                  if (next.has(signal.id)) {
+                                    next.delete(signal.id)
+                                  } else {
+                                    next.add(signal.id)
+                                  }
+                                  return next
+                                })
+                              }}
+                              className="rounded-sm border border-[rgba(0,212,255,0.4)] bg-[rgba(0,212,255,0.08)] px-3 py-1 text-[10px] uppercase tracking-[0.15em] text-[color:var(--accent-blue)] transition hover:bg-[rgba(0,212,255,0.18)]"
+                            >
+                              {capturedIds.has(signal.id) ? 'CAPTURED ✓' : 'Capture'}
+                            </button>
+                          </span>
+                        </div>
+                      </td>
                     </motion.tr>
                   ))}
                 </AnimatePresence>

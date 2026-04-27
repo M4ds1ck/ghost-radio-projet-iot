@@ -46,6 +46,12 @@ export default function ReplayPage() {
   const animatedDuration = useCountUp(REPLAY_DURATION, 1200, 2)
 
   useEffect(() => {
+    return () => {
+      setReplayPlaying(false)
+    }
+  }, [setReplayPlaying])
+
+  useEffect(() => {
     if (!replayPlaying) {
       return undefined
     }
@@ -79,10 +85,13 @@ export default function ReplayPage() {
     const logTimer = setInterval(() => {
       frameCounterRef.current += 1
       const timestamp = frameCounterRef.current * 1.2
-      setLogs((previous) => [
-        ...previous,
-        `> [${formatLogTime(timestamp)}] Frame ${frameCounterRef.current}/520 transmitted \u2713`,
-      ])
+      setLogs((previous) => {
+        const next = [
+          ...previous,
+          `> [${formatLogTime(timestamp)}] Frame ${frameCounterRef.current}/520 transmitted \u2713`,
+        ]
+        return next.length > 80 ? next.slice(next.length - 80) : next
+      })
     }, 1200)
 
     return () => clearInterval(logTimer)

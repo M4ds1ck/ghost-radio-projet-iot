@@ -19,7 +19,9 @@ function getPowerColor(power) {
 
 export default function JammingPage() {
   const { jammerPower, setJammerPower, jammerActive, setJammerActive } = useOutletContext()
-  const [warningVisible, setWarningVisible] = useState(true)
+  const [warningVisible, setWarningVisible] = useState(
+    () => sessionStorage.getItem('jamming-warning-dismissed') !== '1',
+  )
   const powerColor = getPowerColor(jammerPower)
   const snrTarget = 20 * Math.log10(1 / (jammerPower + 0.001))
   const animatedSnr = useCountUp(snrTarget, 500, 1)
@@ -49,7 +51,10 @@ export default function JammingPage() {
             <button
               type="button"
               className="text-slate-300 transition hover:text-white"
-              onClick={() => setWarningVisible(false)}
+              onClick={() => {
+                sessionStorage.setItem('jamming-warning-dismissed', '1')
+                setWarningVisible(false)
+              }}
             >
               CLOSE
             </button>
@@ -184,7 +189,7 @@ export default function JammingPage() {
       <section className="panel p-5">
         <div className="section-heading">Flowgraph Topology</div>
         <div className="mt-4">
-          <FlowGraph module="jamming" jammerPower={jammerPower} />
+          <FlowGraph module="jamming" jammerPower={jammerPower} isActive={jammerActive} />
         </div>
       </section>
     </section>

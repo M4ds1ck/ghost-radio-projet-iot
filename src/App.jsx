@@ -17,6 +17,7 @@ import JammingPage from './pages/JammingPage'
 import ReplayPage from './pages/ReplayPage'
 import ScannerPage from './pages/ScannerPage'
 import SignalNormalPage from './pages/SignalNormalPage'
+import TopologyPage from './pages/TopologyPage'
 
 const pageTitles = {
   '/': 'Dashboard',
@@ -24,6 +25,7 @@ const pageTitles = {
   '/scanner': 'Scanner',
   '/jamming': 'Jamming',
   '/replay': 'Replay',
+  '/topology': 'Hardware Topology',
 }
 
 const pageTransition = {
@@ -42,6 +44,7 @@ function App() {
           <Route path="/scanner" element={<ScannerPage />} />
           <Route path="/jamming" element={<JammingPage />} />
           <Route path="/replay" element={<ReplayPage />} />
+          <Route path="/topology" element={<TopologyPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
@@ -58,9 +61,29 @@ function Shell() {
   const [jammerPower, setJammerPower] = useState(
     GNURADIO.jamming.jammer_power_default,
   )
+  const pageToMenuIndex = {
+    '/scanner': 0,
+    '/jamming': 1,
+    '/replay': 2,
+    '/signal-normal': 3,
+  }
+  const defaultSelection = pageToMenuIndex[location.pathname] ?? 0
+  const esp32InstanceKey = esp32Open
+    ? `open-${defaultSelection}`
+    : `closed-${defaultSelection}-${jammerPower}`
 
   useEffect(() => {
-    document.title = `\u{1f47b} Ghost Radio | ${pageTitles[location.pathname] ?? 'Console'}`
+    const title = pageTitles[location.pathname] ?? 'Console'
+    document.title = `\u{1f47b} Ghost Radio | ${title}`
+    const meta =
+      document.querySelector('meta[name="description"]') ??
+      (() => {
+        const created = document.createElement('meta')
+        created.name = 'description'
+        document.head.appendChild(created)
+        return created
+      })()
+    meta.content = `Ghost Radio - ${title} · Application Layer · IoT Architecture Demo`
   }, [location.pathname])
 
   useEffect(() => {
@@ -122,9 +145,12 @@ Ghost Radio v2.4 \u2014 GNU Radio 3.10.12.0`)
         </main>
       </div>
       <ESP32Screen
+        key={esp32InstanceKey}
         open={esp32Open}
         onClose={() => setEsp32Open(false)}
         jammerPower={jammerPower}
+        onPowerChange={setJammerPower}
+        activePage={defaultSelection}
       />
     </div>
   )

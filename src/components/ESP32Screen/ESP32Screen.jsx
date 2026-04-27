@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CloseIcon } from '../Icons'
 
@@ -21,41 +21,85 @@ function PixelRow({ active = false, children }) {
   )
 }
 
-export default function ESP32Screen({ open, onClose, jammerPower = 0 }) {
-  const [selection, setSelection] = useState(0)
+export default function ESP32Screen({
+  open,
+  onClose,
+  jammerPower = 0,
+  onPowerChange,
+  activePage,
+}) {
+  const [selection, setSelection] = useState(activePage ?? 0)
   const [screen, setScreen] = useState('menu')
   const [devicePower, setDevicePower] = useState(jammerPower)
+  const [lastPressed, setLastPressed] = useState(null)
+  const [scanProgress, setScanProgress] = useState(53)
+
+  useEffect(() => {
+    if (screen !== 'scanner') return undefined
+
+    const timer = setInterval(() => {
+      setScanProgress((prev) => (prev >= 99 ? 10 : prev + 3))
+    }, 400)
+
+    return () => clearInterval(timer)
+  }, [screen])
+
+  useEffect(() => {
+    if (!lastPressed) return undefined
+
+    const timer = setTimeout(() => {
+      setLastPressed(null)
+    }, 280)
+
+    return () => clearTimeout(timer)
+  }, [lastPressed])
+
+  function flashButton(label) {
+    setLastPressed(label)
+  }
 
   const resetState = () => {
-    setSelection(0)
+    setSelection(activePage ?? 0)
     setScreen('menu')
+    setLastPressed(null)
+    setScanProgress(53)
     setDevicePower(jammerPower)
     onClose()
   }
 
   const handleUp = () => {
+    flashButton('UP')
+
     if (screen === 'menu') {
       setSelection((current) => (current - 1 + MENU_ITEMS.length) % MENU_ITEMS.length)
       return
     }
 
     if (screen === 'jamming') {
-      setDevicePower((current) => Math.min(2, Number((current + 0.2).toFixed(1))))
+      const next = Math.min(2, Number((devicePower + 0.2).toFixed(1)))
+      setDevicePower(next)
+      onPowerChange?.(next)
     }
   }
 
   const handleDown = () => {
+    flashButton('DOWN')
+
     if (screen === 'menu') {
       setSelection((current) => (current + 1) % MENU_ITEMS.length)
       return
     }
 
     if (screen === 'jamming') {
-      setDevicePower((current) => Math.max(0, Number((current - 0.2).toFixed(1))))
+      const next = Math.max(0, Number((devicePower - 0.2).toFixed(1)))
+      setDevicePower(next)
+      onPowerChange?.(next)
     }
   }
 
   const handleSelect = () => {
+    flashButton('SEL')
+
     if (screen === 'menu') {
       setScreen(MENU_ITEMS[selection].key)
       return
@@ -65,6 +109,8 @@ export default function ESP32Screen({ open, onClose, jammerPower = 0 }) {
   }
 
   const handleBack = () => {
+    flashButton('BACK')
+
     if (screen === 'menu') {
       resetState()
       return
@@ -74,6 +120,8 @@ export default function ESP32Screen({ open, onClose, jammerPower = 0 }) {
   }
 
   const snr = Math.max(0, Math.round(20 * Math.log10(1 / (devicePower + 0.001))))
+  const filled = Math.round(scanProgress / 10)
+  const empty = 10 - filled
 
   const screenContent = {
     menu: (
@@ -96,14 +144,14 @@ export default function ESP32Screen({ open, onClose, jammerPower = 0 }) {
         <PixelRow>SNIFFING...</PixelRow>
         <PixelRow>Rate: 480k sps</PixelRow>
         <PixelRow>Out: target.raw</PixelRow>
-        <PixelRow>[#####----] 53%</PixelRow>
+        <PixelRow>{`[${'#'.repeat(filled)}${'-'.repeat(empty)}] ${scanProgress}%`}</PixelRow>
         <PixelRow>Found: 1 file</PixelRow>
       </>
     ),
     jamming: (
       <>
         <PixelRow>JAMMER READY</PixelRow>
-        <PixelRow>PWR: [{devicePower.toFixed(1)} A/D]</PixelRow>
+        <PixelRow>PWR: [{devicePower.toFixed(1)} ▲▼]</PixelRow>
         <PixelRow>Noise: Gaussian</PixelRow>
         <PixelRow>SNR: {snr} dB</PixelRow>
         <PixelRow>[ACTIVATE]</PixelRow>
@@ -115,7 +163,7 @@ export default function ESP32Screen({ open, onClose, jammerPower = 0 }) {
         <PixelRow>File: target.raw</PixelRow>
         <PixelRow>Gain: x0.5 Loop:ON</PixelRow>
         <PixelRow>Dur: 16.3s</PixelRow>
-        <PixelRow>[PLAY] [STOP]</PixelRow>
+        <PixelRow>[▶ PLAY] [■ STOP]</PixelRow>
       </>
     ),
     signal_normal: (
@@ -177,9 +225,16 @@ export default function ESP32Screen({ open, onClose, jammerPower = 0 }) {
                       {screenContent[screen]}
                     </motion.div>
                   </AnimatePresence>
+                  {lastPressed && (
+                    <div className="mt-2 text-[9px] uppercase tracking-[0.12em] text-[rgba(0,255,65,0.6)]">
+                      [{lastPressed}] pressed
+                    </div>
+                  )}
                 </div>
                 <div className="mt-2 text-[#00b13a]">------------------</div>
-                <div className="mt-2">[A][SEL][D][BACK]</div>
+                <div className="mt-2 text-[9px] uppercase tracking-[0.12em] text-[#00b13a]">
+                  {screen === 'menu' ? '> navigate with buttons' : '> [SELECT] to go back'}
+                </div>
               </div>
             </div>
 

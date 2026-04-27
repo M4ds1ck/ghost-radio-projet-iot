@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { GNURADIO, formatMicroseconds } from '../../constants/gnuradio'
 
 const BLOCK_STYLE = {
@@ -404,33 +405,10 @@ function renderConnection(blockMap, connection) {
   return `M ${source.x} ${source.y} C ${source.x + delta} ${source.y}, ${target.x - delta} ${target.y}, ${target.x} ${target.y}`
 }
 
-function renderTooltip(hoveredBlock, tooltipPosition) {
-  if (!hoveredBlock || !tooltipPosition) {
-    return null
-  }
-
-  return (
-    <div
-      className="pointer-events-none absolute z-10 max-w-[260px] rounded-sm border border-[rgba(30,37,48,0.8)] bg-[rgba(10,12,15,0.96)] px-3 py-2 text-xs uppercase tracking-[0.12em] text-slate-200 shadow-[0_12px_30px_rgba(0,0,0,0.35)]"
-      style={{
-        left: tooltipPosition.x + 12,
-        top: tooltipPosition.y + 12,
-      }}
-    >
-      {hoveredBlock.tooltip.map((line) => (
-        <div key={`${hoveredBlock.id}-${line}`} className="leading-5">
-          {line}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-export default function FlowGraph({ module, jammerPower = 0 }) {
-  const containerRef = useRef(null)
+export default function FlowGraph({ module, jammerPower = 0, isActive = false }) {
   const [selectedBlockId, setSelectedBlockId] = useState(null)
   const [hoveredBlockId, setHoveredBlockId] = useState(null)
-  const [tooltipPosition, setTooltipPosition] = useState(null)
+  const [rawPosition, setRawPosition] = useState(null)
 
   const definition = useMemo(() => createModules(jammerPower)[module], [jammerPower, module])
   const blockMap = useMemo(
@@ -440,7 +418,10 @@ export default function FlowGraph({ module, jammerPower = 0 }) {
   const hoveredBlock = definition.blocks.find((block) => block.id === hoveredBlockId) ?? null
 
   return (
-    <div ref={containerRef} className="relative h-full w-full">
+    <div className="relative h-full w-full">
+      <div className="mb-2 text-[10px] uppercase tracking-[0.15em] text-slate-500">
+        GNU Radio flowgraph - click a block for details
+      </div>
       <div className="overflow-x-auto rounded-sm border border-[color:var(--border)] bg-[linear-gradient(180deg,#f8fbff,#dbe7ff)] p-4 shadow-[inset_0_0_22px_rgba(96,114,157,0.22)]">
         <svg
           viewBox={`0 0 ${definition.width} ${definition.height}`}
@@ -463,6 +444,20 @@ export default function FlowGraph({ module, jammerPower = 0 }) {
             <filter id={`glow-${module}`} x="-25%" y="-25%" width="150%" height="150%">
               <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor="#60a5fa" floodOpacity="0.55" />
             </filter>
+            <filter id={`alert-glow-${module}`} x="-25%" y="-25%" width="150%" height="150%">
+              <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor="#ff2d55" floodOpacity="0.45" />
+            </filter>
+            <marker
+              id={`fg-arrow-${module}`}
+              viewBox="0 0 10 6"
+              refX="9"
+              refY="3"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M0 0L10 3L0 6Z" fill="#475569" />
+            </marker>
           </defs>
 
           <rect
@@ -480,26 +475,39 @@ export default function FlowGraph({ module, jammerPower = 0 }) {
               fill="none"
               stroke="#475569"
               strokeWidth="3"
+              markerEnd={`url(#fg-arrow-${module})`}
             />
           ))}
 
           {definition.blocks.map((block) => {
             const selected = selectedBlockId === block.id
+            const activeAlert =
+              isActive && module === 'jamming' && (block.id === 'noise' || block.id === 'add')
+            const strokeColor = activeAlert
+              ? '#ff2d55'
+              : selected
+                ? '#3b82f6'
+                : BLOCK_STYLE.stroke
+            const strokeWidth = activeAlert || selected ? 3 : 2
+            const filter = activeAlert
+              ? `url(#alert-glow-${module})`
+              : selected
+                ? `url(#glow-${module})`
+                : undefined
+
             return (
               <g
                 key={block.id}
                 transform={`translate(${block.x}, ${block.y})`}
                 onMouseEnter={() => setHoveredBlockId(block.id)}
-                onMouseLeave={() => setHoveredBlockId(null)}
+                onMouseLeave={() => {
+                  setHoveredBlockId(null)
+                  setRawPosition(null)
+                }}
                 onMouseMove={(event) => {
-                  const rect = containerRef.current?.getBoundingClientRect()
-                  if (!rect) {
-                    return
-                  }
-
-                  setTooltipPosition({
-                    x: event.clientX - rect.left,
-                    y: event.clientY - rect.top,
+                  setRawPosition({
+                    x: event.clientX,
+                    y: event.clientY,
                   })
                 }}
                 onClick={() => setSelectedBlockId((current) => (current === block.id ? null : block.id))}
@@ -510,9 +518,9 @@ export default function FlowGraph({ module, jammerPower = 0 }) {
                   height={block.height}
                   rx="8"
                   fill={BLOCK_STYLE.fill}
-                  stroke={selected ? '#3b82f6' : BLOCK_STYLE.stroke}
-                  strokeWidth={selected ? 3 : 2}
-                  filter={selected ? `url(#glow-${module})` : undefined}
+                  stroke={strokeColor}
+                  strokeWidth={strokeWidth}
+                  filter={filter}
                 />
                 <rect
                   x="0"
@@ -589,7 +597,21 @@ export default function FlowGraph({ module, jammerPower = 0 }) {
           })}
         </svg>
       </div>
-      {renderTooltip(hoveredBlock, tooltipPosition)}
+      {hoveredBlock &&
+        rawPosition &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[9999] max-w-[260px] rounded-sm border border-[rgba(30,37,48,0.8)] bg-[rgba(10,12,15,0.96)] px-3 py-2 text-xs uppercase tracking-[0.12em] text-slate-200 shadow-[0_12px_30px_rgba(0,0,0,0.35)]"
+            style={{ left: rawPosition.x + 14, top: rawPosition.y + 14 }}
+          >
+            {hoveredBlock.tooltip.map((line) => (
+              <div key={`${hoveredBlock.id}-${line}`} className="leading-5">
+                {line}
+              </div>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

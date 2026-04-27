@@ -3,6 +3,7 @@ import {
   CloseIcon,
   DashboardIcon,
   DeviceIcon,
+  FlowGraphIcon,
   GhostRadioIcon,
   JammerIcon,
   ReplayIcon,
@@ -16,6 +17,7 @@ const navItems = [
   { to: '/scanner', label: 'Scanner', icon: ScannerIcon },
   { to: '/jamming', label: 'Jamming', icon: JammerIcon },
   { to: '/replay', label: 'Replay', icon: ReplayIcon },
+  { to: '/topology', label: 'Hardware Topology', icon: FlowGraphIcon },
 ]
 
 export default function Sidebar({ mobileOpen, onClose, onOpenDevice }) {
@@ -85,6 +87,14 @@ export default function Sidebar({ mobileOpen, onClose, onOpenDevice }) {
           <div className="mt-4 border-t border-[color:var(--border)] pt-4 text-[10px] uppercase tracking-[0.15em] text-slate-500">
             GNU Radio 3.10.12.0 | ESP32-S3
           </div>
+          <a
+            href="https://github.com/M4ds1ck/ghost-radio-projet-iot"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 block text-[10px] uppercase tracking-[0.15em] text-slate-600 transition hover:text-slate-400"
+          >
+            ↗ github/M4ds1ck
+          </a>
         </div>
       </aside>
     </>

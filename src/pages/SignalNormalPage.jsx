@@ -1,9 +1,11 @@
+import { useNavigate } from 'react-router-dom'
 import FlowGraph from '../components/FlowGraph/FlowGraph'
 import FFTChart from '../components/FFTChart/FFTChart'
 import { GNURADIO, formatHertz } from '../constants/gnuradio'
 import useCountUp from '../hooks/useCountUp'
 
 export default function SignalNormalPage() {
+  const navigate = useNavigate()
   const sampleRate = useCountUp(GNURADIO.signalNormal.samp_rate)
   const signalFrequency = useCountUp(GNURADIO.signalNormal.signal_freq)
   const fftSize = useCountUp(GNURADIO.signalNormal.fft_size)
@@ -137,8 +139,15 @@ export default function SignalNormalPage() {
 
       <section className="rounded-sm border border-[rgba(255,214,10,0.35)] bg-[rgba(255,214,10,0.08)] p-5 text-sm text-slate-100 shadow-[0_0_18px_rgba(255,214,10,0.12)]">
         This is the reference signal before any attack. A 1 kHz complex sine wave
-        at 32 kSps produces a single sharp FFT peak at +1 kHz. Compare this with
-        the Jamming page to see the SNR degradation.
+        at 32 kSps produces a single sharp FFT peak at +1 kHz. Compare this baseline
+        with the Jamming page to observe SNR degradation as Gaussian noise is injected.
+        <button
+          type="button"
+          onClick={() => navigate('/jamming')}
+          className="ml-3 rounded-sm border border-[rgba(255,214,10,0.35)] bg-[rgba(255,214,10,0.08)] px-3 py-1 text-[11px] uppercase tracking-[0.15em] transition hover:bg-[rgba(255,214,10,0.16)]"
+        >
+          → Go to Jamming
+        </button>
       </section>
     </section>
   )

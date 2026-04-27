@@ -12,11 +12,25 @@ function formatClock(date) {
 
 export default function TopBar({ statuses, jammerActive, onToggleSidebar }) {
   const [clock, setClock] = useState(() => formatClock(new Date()))
+  const [battery, setBattery] = useState(87)
+  const [signal, setSignal] = useState(4)
 
   useEffect(() => {
     const timer = setInterval(() => {
       setClock(formatClock(new Date()))
     }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setBattery((prev) => {
+        const drift = Math.random() > 0.85 ? -1 : 0
+        return Math.max(72, prev + drift)
+      })
+      setSignal(Math.random() > 0.9 ? 3 : 4)
+    }, 8000)
 
     return () => clearInterval(timer)
   }, [])
@@ -54,11 +68,11 @@ export default function TopBar({ statuses, jammerActive, onToggleSidebar }) {
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-slate-300">
           <div className="label-chip">
             <BatteryIcon className="h-4 w-4 text-[color:var(--accent-green)]" />
-            <span>87%</span>
+            <span>{battery}%</span>
           </div>
           <div className="label-chip">
             <SignalBarsIcon className="h-4 w-4 text-[color:var(--accent-blue)]" />
-            <span>4/5</span>
+            <span>{signal}/5</span>
           </div>
           <div className="label-chip">
             <span>{clock}</span>

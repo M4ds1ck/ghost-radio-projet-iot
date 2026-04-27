@@ -22,7 +22,7 @@ export const GNURADIO = {
     output_file: 'captured_target.raw',
     output_size_bytes: 62481664,
     output_append: false,
-    bytes_per_sample: 8,
+    bytes_per_sample: 8, // complex64: 2 × 32-bit float (I + Q channels)
   },
   jamming: {
     samp_rate: 480000,
@@ -72,4 +72,10 @@ export function formatMicroseconds(value) {
 
 export function formatHertz(value) {
   return new Intl.NumberFormat('en-US').format(value)
+}
+
+export function formatBytes(bytes) {
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} MB`
+  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(1)} KB`
+  return `${bytes} B`
 }
