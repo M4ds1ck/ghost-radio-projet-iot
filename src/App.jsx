@@ -7,11 +7,11 @@ import {
   Routes,
   useLocation,
 } from 'react-router-dom'
-import ESP32Screen from './components/ESP32Screen/ESP32Screen'
-import CRTOverlay from './components/Layout/CRTOverlay'
 import Sidebar from './components/Layout/Sidebar'
 import TopBar from './components/Layout/TopBar'
-import { GNURADIO } from './constants/gnuradio'
+import { formatModeLabel } from './constants/hardware'
+import useSystemState from './hooks/useSystemState'
+import ArchitecturePage from './pages/ArchitecturePage'
 import Dashboard from './pages/Dashboard'
 import JammingPage from './pages/JammingPage'
 import ReplayPage from './pages/ReplayPage'
@@ -19,32 +19,39 @@ import ScannerPage from './pages/ScannerPage'
 import SignalNormalPage from './pages/SignalNormalPage'
 import TopologyPage from './pages/TopologyPage'
 
-const pageTitles = {
+const PAGE_TITLES = {
   '/': 'Dashboard',
-  '/signal-normal': 'Signal Normal',
   '/scanner': 'Scanner',
   '/jamming': 'Jamming',
   '/replay': 'Replay',
-  '/topology': 'Hardware Topology',
+  '/signal-normal': 'Signal Normal',
+  '/topology': 'Topologie Hardware',
+  '/architecture': 'Architecture IoT',
 }
 
-const pageTransition = {
-  initial: { opacity: 0, x: 28 },
+const PAGE_TRANSITION = {
+  initial: { opacity: 0, x: 18 },
   animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -18 },
+  exit: { opacity: 0, x: -12 },
 }
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <Routes>
         <Route element={<Shell />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/signal-normal" element={<SignalNormalPage />} />
           <Route path="/scanner" element={<ScannerPage />} />
           <Route path="/jamming" element={<JammingPage />} />
           <Route path="/replay" element={<ReplayPage />} />
+          <Route path="/signal-normal" element={<SignalNormalPage />} />
           <Route path="/topology" element={<TopologyPage />} />
+          <Route path="/architecture" element={<ArchitecturePage />} />
         </Route>
       </Routes>
     </BrowserRouter>
@@ -54,27 +61,11 @@ function App() {
 function Shell() {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [esp32Open, setEsp32Open] = useState(false)
-  const [scannerActive, setScannerActive] = useState(false)
-  const [jammerActive, setJammerActive] = useState(false)
-  const [replayPlaying, setReplayPlaying] = useState(false)
-  const [jammerPower, setJammerPower] = useState(
-    GNURADIO.jamming.jammer_power_default,
-  )
-  const pageToMenuIndex = {
-    '/scanner': 0,
-    '/jamming': 1,
-    '/replay': 2,
-    '/signal-normal': 3,
-  }
-  const defaultSelection = pageToMenuIndex[location.pathname] ?? 0
-  const esp32InstanceKey = esp32Open
-    ? `open-${defaultSelection}`
-    : `closed-${defaultSelection}-${jammerPower}`
+  const { systemState, api } = useSystemState()
+  const pageTitle = PAGE_TITLES[location.pathname] ?? 'Dashboard'
 
   useEffect(() => {
-    const title = pageTitles[location.pathname] ?? 'Console'
-    document.title = `\u{1f47b} Ghost Radio | ${title}`
+    document.title = `Ghost Radio | ${pageTitle}`
     const meta =
       document.querySelector('meta[name="description"]') ??
       (() => {
@@ -83,75 +74,48 @@ function Shell() {
         document.head.appendChild(created)
         return created
       })()
-    meta.content = `Ghost Radio - ${title} · Application Layer · IoT Architecture Demo`
-  }, [location.pathname])
+
+    meta.content =
+      'Dashboard React de la couche Application pour ESP32, CC1101, REST 192.168.4.1, SQLite et SPIFFS.'
+  }, [pageTitle])
 
   useEffect(() => {
-    console.log(`\
- .-.       .-. 
-(   \\ .-. /   )
- \\   (   )   / 
-  \\   '-'   /  
-   '.___.__.'  
-Ghost Radio v2.4 \u2014 GNU Radio 3.10.12.0`)
-  }, [])
-
-  const statuses = {
-    signalNormal: location.pathname === '/signal-normal' ? 'active' : 'ready',
-    scanner: scannerActive ? 'active' : location.pathname === '/scanner' ? 'ready' : 'idle',
-    jammer: jammerActive ? 'active' : location.pathname === '/jamming' ? 'ready' : 'idle',
-    replay: replayPlaying ? 'active' : location.pathname === '/replay' ? 'ready' : 'idle',
-  }
+    console.log(`Ghost Radio Application Layer
+ESP32 + CC1101 + REST API @ 192.168.4.1
+Mode actif: ${formatModeLabel(systemState.mode)}`)
+  }, [systemState.mode])
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--bg-primary)] text-[color:var(--text-primary)]">
-      <CRTOverlay />
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[color:var(--text-primary)]">
       <Sidebar
+        currentMode={systemState.mode}
+        connected={systemState.connected}
         mobileOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onOpenDevice={() => setEsp32Open(true)}
       />
-      <div className="relative min-h-screen md:pl-72">
+
+      <div className="min-h-screen md:pl-[272px]">
         <TopBar
-          statuses={statuses}
-          jammerActive={jammerActive}
+          pageTitle={pageTitle}
+          systemState={systemState}
           onToggleSidebar={() => setSidebarOpen((current) => !current)}
         />
-        <main className="relative px-4 pb-6 pt-4 md:px-8 md:pb-8 md:pt-6">
+
+        <main className="px-4 py-4 md:px-6 md:py-5">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
-              variants={pageTransition}
+              variants={PAGE_TRANSITION}
               initial="initial"
               animate="animate"
               exit="exit"
-              transition={{ duration: 0.3, ease: 'easeOut' }}
+              transition={{ duration: 0.24, ease: 'easeOut' }}
             >
-              <Outlet
-                context={{
-                  openEsp32: () => setEsp32Open(true),
-                  jammerPower,
-                  setJammerPower,
-                  scannerActive,
-                  setScannerActive,
-                  jammerActive,
-                  setJammerActive,
-                  replayPlaying,
-                  setReplayPlaying,
-                }}
-              />
+              <Outlet context={{ systemState, api }} />
             </motion.div>
           </AnimatePresence>
         </main>
       </div>
-      <ESP32Screen
-        key={esp32InstanceKey}
-        open={esp32Open}
-        onClose={() => setEsp32Open(false)}
-        jammerPower={jammerPower}
-        onPowerChange={setJammerPower}
-        activePage={defaultSelection}
-      />
     </div>
   )
 }

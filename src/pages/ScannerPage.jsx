@@ -1,250 +1,100 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
 import { useOutletContext } from 'react-router-dom'
-import FFTChart from '../components/FFTChart/FFTChart'
-import FlowGraph from '../components/FlowGraph/FlowGraph'
-import {
-  GNURADIO,
-  formatBytes,
-  getCaptureDurationSeconds,
-} from '../constants/gnuradio'
-import useCountUp from '../hooks/useCountUp'
-
-const BASE_SIGNALS = [
-  {
-    id: 1,
-    frequency: '433.920 MHz',
-    power: '-62 dBm',
-    modulation: 'NBFM',
-    status: `CAPTURED \u2713`,
-  },
-  {
-    id: 2,
-    frequency: '868.350 MHz',
-    power: '-78 dBm',
-    modulation: 'OOK',
-    status: 'WEAK',
-  },
-  {
-    id: 3,
-    frequency: '2.450 GHz',
-    power: '-45 dBm',
-    modulation: 'DSSS',
-    status: `ACTIVE \u26a1`,
-  },
-]
+import FFTChart from '../components/Charts/FFTChart'
+import useFFT from '../hooks/useFFT'
+import { TARGET_FREQUENCY_MHZ, formatDbm } from '../constants/hardware'
 
 export default function ScannerPage() {
-  const { scannerActive, setScannerActive } = useOutletContext()
-  const [selectedSignal, setSelectedSignal] = useState(1)
-  const [visibleRows, setVisibleRows] = useState(BASE_SIGNALS.length)
-  const [capturedIds, setCapturedIds] = useState(new Set([1]))
-  const fileSize = useCountUp(GNURADIO.sniffer.output_size_bytes)
-  const duration = useCountUp(getCaptureDurationSeconds(), 1200, 1)
-
-  useEffect(() => {
-    if (!scannerActive) {
-      return undefined
-    }
-
-    let shown = 0
-    const timer = setInterval(() => {
-      shown += 1
-      setVisibleRows(Math.min(shown, BASE_SIGNALS.length))
-      if (shown >= BASE_SIGNALS.length) {
-        clearInterval(timer)
-      }
-    }, 180)
-
-    return () => clearInterval(timer)
-  }, [scannerActive])
-
-  const rows = useMemo(() => BASE_SIGNALS.slice(0, visibleRows), [visibleRows])
+  const { systemState, api } = useOutletContext()
+  const fftData = useFFT({
+    mode: 'scanner',
+    jammerPower: systemState.jammerPower,
+    profile: 'rf',
+  })
 
   return (
-    <section className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="rounded-sm border border-[rgba(0,212,255,0.35)] bg-[rgba(0,212,255,0.08)] px-3 py-2 text-[color:var(--accent-blue)] shadow-[0_0_18px_rgba(0,212,255,0.16)]">
-          SNIFF
-        </div>
-        <div>
-          <div className="text-2xl uppercase tracking-[0.18em] text-[color:var(--accent-blue)]">
-            RF Signal Sniffer
-          </div>
-          <div className="mt-1 text-sm text-slate-400">
-            Sniffer.py capture path mirrored from GNU Radio 3.10.12.0
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
-        <section className="panel p-5 text-sm text-slate-300">
-          <div className="section-heading">Capture Parameters</div>
-          <div className="mt-4 space-y-2">
-            <div className="flex justify-between">
-              <span>Input source</span>
-              <span>final-version.wav (repeat: Yes)</span>
-            </div>
-            <div className="flex justify-between">
-              <span>NBFM TX</span>
-              <span>audio=48k | quad=480k</span>
-            </div>
-            <div className="flex justify-between">
-              <span>tau</span>
-              <span>75\u00b5s</span>
-            </div>
-            <div className="flex justify-between">
-              <span>max_dev</span>
-              <span>5k</span>
-            </div>
-            <div className="flex justify-between">
-              <span>fh</span>
-              <span>-1.0</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Throttle</span>
-              <span>480,000 sps | limit=None</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Output</span>
-              <span>captured_target.raw</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Append</span>
-              <span>OFF</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Unbuffered</span>
-              <span>OFF</span>
-            </div>
-            <div className="flex justify-between">
-              <span>File size</span>
-              <span>{formatBytes(Math.round(fileSize))}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Duration</span>
-              <span>{duration.toFixed(1)} seconds</span>
+    <section className="space-y-4">
+      <section className="panel dense-panel p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="section-label">Scanner RF</div>
+            <div className="mt-2 text-sm text-slate-400">
+              Ecoute passive sur <code className="mono-inline">{TARGET_FREQUENCY_MHZ.toFixed(1)} MHz</code> via
+              <code className="mono-inline ml-1">POST /api/mode</code> puis lecture temps reel de
+              <code className="mono-inline ml-1">GET /api/signal</code>.
             </div>
           </div>
-
           <button
             type="button"
-            onClick={() => {
-              if (scannerActive) {
-                setScannerActive(false)
-                return
-              }
-
-              setVisibleRows(0)
-              setScannerActive(true)
-            }}
-            className={`mt-6 w-full rounded-sm border px-4 py-3 text-sm uppercase tracking-[0.18em] transition ${
-              scannerActive
-                ? 'animate-pulse border-[rgba(0,212,255,0.45)] bg-[rgba(0,212,255,0.12)] text-[color:var(--accent-blue)] shadow-[0_0_18px_rgba(0,212,255,0.18)]'
-                : 'border-[color:var(--border)] bg-[color:var(--bg-secondary)] text-slate-200'
+            onClick={() => api.setScannerActive(!systemState.scannerRunning)}
+            className={`rounded-sm border px-4 py-2 text-[11px] uppercase tracking-[0.18em] transition ${
+              systemState.scannerRunning
+                ? 'border-[var(--accent-blue)] text-[var(--accent-blue)]'
+                : 'border-white/10 text-slate-300'
             }`}
           >
-            {scannerActive ? 'STOP' : 'START SNIFFING'}
+            {systemState.scannerRunning ? 'Stop scanner' : 'Start scanner'}
           </button>
-        </section>
+        </div>
 
-        <section className="panel p-5">
-          <div className="section-heading">Detected Signals</div>
+        <div className="mt-4 border border-white/10 bg-[#0c1118] px-2 py-3">
+          <FFTChart
+            data={fftData}
+            xDomain={[444, 448]}
+            yDomain={[-120, 0]}
+            xLabel="Frequence (MHz)"
+            marker={TARGET_FREQUENCY_MHZ}
+            stroke="#3399ff"
+            height={380}
+          />
+        </div>
+
+        <div className="mt-3 text-[11px] uppercase tracking-[0.16em] text-slate-500">
+          {systemState.scannerRunning
+            ? `Listening on ${TARGET_FREQUENCY_MHZ.toFixed(1)} MHz...`
+            : 'Scanner idle - waiting for operator command'}
+        </div>
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <section className="panel dense-panel p-4">
+          <div className="section-label">Frequences detectees</div>
           <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full border-separate border-spacing-y-2 text-left text-sm">
+            <table className="w-full min-w-[620px] border-separate border-spacing-y-1.5 text-left text-sm">
               <thead className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
                 <tr>
-                  <th className="pb-2">#</th>
-                  <th className="pb-2">Frequency</th>
-                  <th className="pb-2">Power (dBm)</th>
-                  <th className="pb-2">Modulation</th>
-                  <th className="pb-2">Status</th>
+                  <th className="px-3 py-2">Signal</th>
+                  <th className="px-3 py-2">Frequence</th>
+                  <th className="px-3 py-2">RSSI</th>
+                  <th className="px-3 py-2">Etat</th>
+                  <th className="px-3 py-2">Note</th>
                 </tr>
               </thead>
               <tbody>
-                <AnimatePresence initial={false}>
-                  {rows.map((signal, index) => (
-                    <motion.tr
-                      key={signal.id}
-                      initial={{ opacity: 0, x: 24 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -18 }}
-                      transition={{ delay: index * 0.04 }}
-                      onClick={() => setSelectedSignal(signal.id)}
-                      className="group cursor-pointer text-slate-300"
-                    >
-                      {[signal.id, signal.frequency, signal.power, signal.modulation].map(
-                        (value, cellIndex) => (
-                          <td
-                            key={`${signal.id}-${cellIndex}`}
-                            className={`border border-[color:var(--border)] bg-[color:var(--bg-secondary)]/78 px-4 py-3 ${
-                              cellIndex === 0 ? 'rounded-l-sm' : ''
-                            }`}
-                            style={{
-                              boxShadow:
-                                selectedSignal === signal.id
-                                  ? '0 0 18px rgba(0,212,255,0.12)'
-                                  : 'none',
-                            }}
-                          >
-                            {value}
-                          </td>
-                        ),
-                      )}
-                      <td
-                        className="rounded-r-sm border border-[color:var(--border)] bg-[color:var(--bg-secondary)]/78 px-4 py-3"
-                        style={{
-                          boxShadow:
-                            selectedSignal === signal.id
-                              ? '0 0 18px rgba(0,212,255,0.12)'
-                              : 'none',
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span>{capturedIds.has(signal.id) ? 'CAPTURED ✓' : signal.status}</span>
-                          <span className="opacity-0 transition group-hover:opacity-100">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setCapturedIds((prev) => {
-                                  const next = new Set(prev)
-                                  if (next.has(signal.id)) {
-                                    next.delete(signal.id)
-                                  } else {
-                                    next.add(signal.id)
-                                  }
-                                  return next
-                                })
-                              }}
-                              className="rounded-sm border border-[rgba(0,212,255,0.4)] bg-[rgba(0,212,255,0.08)] px-3 py-1 text-[10px] uppercase tracking-[0.15em] text-[color:var(--accent-blue)] transition hover:bg-[rgba(0,212,255,0.18)]"
-                            >
-                              {capturedIds.has(signal.id) ? 'CAPTURED ✓' : 'Capture'}
-                            </button>
-                          </span>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </AnimatePresence>
+                {systemState.detectedSignals.map((entry) => (
+                  <tr key={entry.id}>
+                    <td className="rounded-l-sm border border-white/10 bg-white/[0.02] px-3 py-3">{entry.label}</td>
+                    <td className="border border-white/10 bg-white/[0.02] px-3 py-3">{entry.frequency.toFixed(4)} MHz</td>
+                    <td className="border border-white/10 bg-white/[0.02] px-3 py-3">{formatDbm(entry.rssi)}</td>
+                    <td className="border border-white/10 bg-white/[0.02] px-3 py-3 text-[var(--accent-blue)]">{entry.status}</td>
+                    <td className="rounded-r-sm border border-white/10 bg-white/[0.02] px-3 py-3 text-slate-400">{entry.note}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </section>
-      </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <section className="panel p-5">
-          <div className="section-heading">Flowgraph Topology</div>
-          <div className="mt-4">
-            <FlowGraph module="sniffer" />
-          </div>
-        </section>
-
-        <section className="panel p-5">
-          <div className="section-heading">Captured NBFM Spectrum</div>
-          <div className="mt-4 rounded-sm border border-[color:var(--border)] bg-[color:var(--bg-secondary)]/75 p-4">
-            <FFTChart mode="sniffing" height={320} />
+        <section className="panel dense-panel p-4">
+          <div className="section-label">Log temps reel</div>
+          <div className="mt-4 space-y-2 text-sm text-slate-300">
+            {systemState.scannerLog.map((entry) => (
+              <div key={entry.id} className="border border-white/10 bg-[#0c1118] px-3 py-2">
+                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                  {entry.timestamp} | {entry.rssi} dBm
+                </div>
+                <div className="mt-1">{entry.message}</div>
+              </div>
+            ))}
           </div>
         </section>
       </div>

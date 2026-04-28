@@ -1,100 +1,126 @@
 import { NavLink } from 'react-router-dom'
-import {
-  CloseIcon,
-  DashboardIcon,
-  DeviceIcon,
-  FlowGraphIcon,
-  GhostRadioIcon,
-  JammerIcon,
-  ReplayIcon,
-  ScannerIcon,
-  SignalNormalIcon,
-} from '../Icons'
+import { FIRMWARE_VERSION, SYSTEM_IP, formatModeLabel } from '../../constants/hardware'
 
-const navItems = [
-  { to: '/', label: 'Dashboard', icon: DashboardIcon },
-  { to: '/signal-normal', label: 'Signal Normal', icon: SignalNormalIcon },
-  { to: '/scanner', label: 'Scanner', icon: ScannerIcon },
-  { to: '/jamming', label: 'Jamming', icon: JammerIcon },
-  { to: '/replay', label: 'Replay', icon: ReplayIcon },
-  { to: '/topology', label: 'Hardware Topology', icon: FlowGraphIcon },
+function NavIcon({ type }) {
+  switch (type) {
+    case 'home':
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <path d="M4 11.5 12 5l8 6.5" />
+          <path d="M6.5 10.5V19h11v-8.5" />
+        </svg>
+      )
+    case 'scanner':
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <circle cx="12" cy="12" r="3.5" />
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" />
+        </svg>
+      )
+    case 'jam':
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <path d="M8 5v14" />
+          <path d="M16 5v14" />
+          <path d="M4 8c2-2 4-3 8-3s6 1 8 3" />
+          <path d="M4 16c2 2 4 3 8 3s6-1 8-3" />
+        </svg>
+      )
+    case 'replay':
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <path d="M7 7H4v5" />
+          <path d="M17 17h3v-5" />
+          <path d="M5 12a7 7 0 0 1 12-4" />
+          <path d="M19 12a7 7 0 0 1-12 4" />
+        </svg>
+      )
+    case 'wave':
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <path d="M2 12c2-6 4-6 6 0s4 6 6 0 4-6 8 0" />
+        </svg>
+      )
+    case 'plug':
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <path d="M7 8V3M17 8V3" />
+          <path d="M6 8h12v2a6 6 0 0 1-6 6v5" />
+        </svg>
+      )
+    default:
+      return (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <rect x="5" y="4" width="14" height="4" />
+          <rect x="5" y="10" width="14" height="4" />
+          <rect x="5" y="16" width="14" height="4" />
+        </svg>
+      )
+  }
+}
+
+const NAV_ITEMS = [
+  { to: '/', icon: 'home', label: 'Dashboard' },
+  { to: '/scanner', icon: 'scanner', label: 'Scanner' },
+  { to: '/jamming', icon: 'jam', label: 'Jamming' },
+  { to: '/replay', icon: 'replay', label: 'Replay' },
+  { to: '/signal-normal', icon: 'wave', label: 'Signal Normal' },
+  { to: '/topology', icon: 'plug', label: 'Topologie Hardware' },
+  { to: '/architecture', icon: 'layers', label: 'Architecture IoT' },
 ]
 
-export default function Sidebar({ mobileOpen, onClose, onOpenDevice }) {
+export default function Sidebar({ currentMode, connected, mobileOpen, onClose }) {
   return (
     <>
-      <div
-        className={`fixed inset-0 z-30 bg-black/60 transition-opacity md:hidden ${
+      <button
+        type="button"
+        aria-label="Fermer la navigation"
+        className={`fixed inset-0 z-30 bg-black/60 transition md:hidden ${
           mobileOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
         }`}
         onClick={onClose}
-        aria-hidden="true"
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-[color:var(--border)] bg-[rgba(11,14,18,0.96)] backdrop-blur-md transition-transform duration-300 md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-[272px] flex-col border-r border-white/10 bg-[#0d1016] transition-transform duration-200 md:translate-x-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-start justify-between border-b border-[color:var(--border)] px-5 py-6">
-          <div className="flex items-center gap-3">
-            <div className="rounded-sm border border-[rgba(0,255,65,0.25)] bg-[rgba(0,255,65,0.05)] p-2 text-[color:var(--accent-green)] shadow-[0_0_14px_rgba(0,255,65,0.12)]">
-              <GhostRadioIcon className="h-8 w-8" />
-            </div>
-            <div>
-              <div className="text-sm uppercase tracking-[0.18em] text-[color:var(--accent-green)]">
-                Ghost Radio
-              </div>
-              <div className="mt-1 text-[10px] uppercase tracking-[0.15em] text-slate-500">
-                Couche Application
-              </div>
-            </div>
+        <div className="border-b border-white/10 px-5 py-5">
+          <div className="text-sm uppercase tracking-[0.26em] text-[var(--accent-green)]">
+            Ghost Radio
           </div>
-
-          <button
-            type="button"
-            className="control-button px-3 md:hidden"
-            onClick={onClose}
-            aria-label="Close navigation"
-          >
-            <CloseIcon />
-          </button>
+          <div className="mt-2 text-[11px] uppercase tracking-[0.16em] text-slate-500">
+            Couche Application IoT
+          </div>
         </div>
 
-        <nav className="space-y-2 px-4 py-5">
-          {navItems.map(({ to, label, icon: Icon }) => (
+        <nav className="flex-1 space-y-1 px-3 py-4">
+          {NAV_ITEMS.map((item) => (
             <NavLink
-              key={to}
-              to={to}
+              key={item.to}
+              to={item.to}
               onClick={onClose}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              className={({ isActive }) => `sidebar-link ${isActive ? 'is-active' : ''}`}
             >
-              <Icon className="h-5 w-5" />
-              <span>{label}</span>
+              <span className="flex h-5 w-5 items-center justify-center text-slate-400">
+                <NavIcon type={item.icon} />
+              </span>
+              <span>{item.label}</span>
             </NavLink>
           ))}
         </nav>
 
-        <div className="mt-auto px-4 pb-5">
-          <button
-            type="button"
-            onClick={onOpenDevice}
-            className="control-button w-full justify-center border-[rgba(0,255,65,0.18)] text-[color:var(--accent-green)] shadow-[0_0_12px_rgba(0,255,65,0.12)]"
-          >
-            <DeviceIcon />
-            <span>ESP32 SIM</span>
-          </button>
-          <div className="mt-4 border-t border-[color:var(--border)] pt-4 text-[10px] uppercase tracking-[0.15em] text-slate-500">
-            GNU Radio 3.10.12.0 | ESP32-S3
+        <div className="border-t border-white/10 px-4 py-4 text-[11px] uppercase tracking-[0.15em] text-slate-400">
+          <div className="flex items-center gap-2">
+            <span
+              className={`status-led ${connected ? 'is-active' : ''}`}
+              style={{ '--led-color': connected ? '#00ff88' : '#64748b' }}
+            />
+            <span>{connected ? `Connecte a ${SYSTEM_IP}` : 'Deconnecte'}</span>
           </div>
-          <a
-            href="https://github.com/M4ds1ck/ghost-radio-projet-iot"
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 block text-[10px] uppercase tracking-[0.15em] text-slate-600 transition hover:text-slate-400"
-          >
-            ↗ github/M4ds1ck
-          </a>
+          <div className="mt-3 text-slate-500">{FIRMWARE_VERSION}</div>
+          <div className="mt-2 text-slate-500">Mode actif: {formatModeLabel(currentMode)}</div>
         </div>
       </aside>
     </>
